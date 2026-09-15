@@ -7,12 +7,24 @@ name = "sessionkit"
 description = "Accounts, opaque server-side sessions, and opt-in TOTP two-factor auth."
 readme = "README.md"
 requires-python = ">=3.13"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Andrew Townsend" }]
 dynamic = ["version"]
 dependencies = [
     "pyotp>=2.9",
     "argon2-cffi>=23",
 ]
-# Fill in before publishing: authors, license, classifiers, project.urls.
+classifiers = [
+    "Programming Language :: Python :: 3.13",
+    "Intended Audience :: Developers",
+    "Topic :: Security",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Source = "https://github.com/atownsend247/bb-py-sessionkit"
+Issues = "https://github.com/atownsend247/bb-py-sessionkit/issues"
 
 [project.optional-dependencies]
 dev = [

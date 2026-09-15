@@ -77,6 +77,8 @@ python -m sessionkit add you@example.com   # or: sessionkit add …
 - `requires-python = ">=3.13"` in `pyproject.toml` — don't widen it to support
   an older version without a reason; nothing here needs it, it's just what the
   original host app was pinned to.
-- Not yet published anywhere (no `project.urls`, no license chosen, no CI
-  workflow). Fill those in before it needs to be installed from outside this
-  machine.
+- Published as source on GitHub (`atownsend247/bb-py-sessionkit`, MIT), tagged
+  releases (`v0.1.0`, ...) — **not** on PyPI. Consumers pin
+  `sessionkit @ git+https://github.com/atownsend247/bb-py-sessionkit.git@<tag>`.
+  Bump `__version__` in `src/sessionkit/__init__.py` and tag to cut a release;
+  there's no CI workflow yet, so run `pytest --cov` locally before tagging.

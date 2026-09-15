@@ -31,8 +31,18 @@ is the admin/support path (wire it behind your own permission check).
 
 ## Install
 
+Not on PyPI yet — install straight from GitHub, pinned to a tag:
+
 ```sh
-pip install sessionkit
+pip install "sessionkit @ git+https://github.com/atownsend247/bb-py-sessionkit.git@v0.1.0"
+```
+
+or as a dependency line in `pyproject.toml`:
+
+```toml
+dependencies = [
+    "sessionkit @ git+https://github.com/atownsend247/bb-py-sessionkit.git@v0.1.0",
+]
 ```
 
 ## Bring your own storage
@@ -80,3 +90,7 @@ sessionkit 2fa-disable you@example.com  # lockout recovery
 pip install -e ".[dev]"
 pytest
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
