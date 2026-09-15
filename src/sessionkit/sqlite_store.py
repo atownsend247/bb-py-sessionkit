@@ -109,6 +109,18 @@ class SqliteAuthStore:
     def open(cls, db_path: str = "auth.db", *, check_same_thread: bool = True) -> "SqliteAuthStore":
         return cls(connect(db_path, check_same_thread=check_same_thread))
 
+    def close(self) -> None:
+        """Close the underlying connection. Idempotent - closing twice is a
+        no-op, matching :meth:`sqlite3.Connection.close`."""
+        with self._lock:
+            self._conn.close()
+
+    def __enter__(self) -> "SqliteAuthStore":
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        self.close()
+
     # ---- accounts ---------------------------------------------------
     @_locked
     def add_user(self, email: str, name: str, password_hash: str) -> User:

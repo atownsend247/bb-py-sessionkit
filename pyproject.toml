@@ -57,11 +57,9 @@ test = "pytest {args}"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-filterwarnings = [
-    # the CLI opens a store per invocation and relies on process exit / GC to
-    # close it; in a test run that shows up as GC-time noise, not a real leak.
-    "ignore:unclosed database:ResourceWarning",
-]
+# No ResourceWarning filter needed - SqliteAuthStore.close() (+ context-manager
+# support) means every store opened in tests/the CLI is closed explicitly.
+# If "unclosed database" ever reappears here, something really did leak.
 
 # --- coverage ---------------------------------------------------------------
 

@@ -10,14 +10,17 @@ from sessionkit.sqlite_store import connect, ensure_schema
 
 def test_ensure_schema_is_idempotent():
     conn = connect(":memory:")
-    ensure_schema(conn)  # second call must not raise
-    tables = {
-        r[0]
-        for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type = 'table'"
-        )
-    }
-    assert {"users", "sessions", "recovery_codes"} <= tables
+    try:
+        ensure_schema(conn)  # second call must not raise
+        tables = {
+            r[0]
+            for r in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+        assert {"users", "sessions", "recovery_codes"} <= tables
+    finally:
+        conn.close()
 
 
 def test_store_satisfies_the_protocol(store):
@@ -91,6 +94,39 @@ def test_sessions_lifecycle(store):
 
 
 def test_open_classmethod_builds_a_ready_store(tmp_path):
+    with SqliteAuthStore.open(str(tmp_path / "auth.db")) as store:
+        store.add_user("a@b.com", "A", "h")
+        assert store.count_users() == 1
+
+
+def test_close_releases_the_connection(tmp_path):
     store = SqliteAuthStore.open(str(tmp_path / "auth.db"))
     store.add_user("a@b.com", "A", "h")
-    assert store.count_users() == 1
+    store.close()
+    with pytest.raises(Exception):  # sqlite3.ProgrammingError on a closed connection
+        store.count_users()
+
+
+def test_close_is_idempotent(tmp_path):
+    store = SqliteAuthStore.open(str(tmp_path / "auth.db"))
+    store.close()
+    store.close()  # must not raise
+
+
+def test_used_as_a_context_manager_closes_on_exit(tmp_path):
+    with SqliteAuthStore.open(str(tmp_path / "auth.db")) as store:
+        store.add_user("a@b.com", "A", "h")
+        assert store.count_users() == 1
+
+    with pytest.raises(Exception):
+        store.count_users()
+
+
+def test_context_manager_closes_even_on_an_exception(tmp_path):
+    store = SqliteAuthStore.open(str(tmp_path / "auth.db"))
+    with pytest.raises(ValueError):
+        with store:
+            raise ValueError("boom")
+
+    with pytest.raises(Exception):
+        store.count_users()

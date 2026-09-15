@@ -56,6 +56,12 @@ python -m sessionkit add you@example.com   # or: sessionkit add …
 
 ## Conventions
 
+- `SqliteAuthStore` owns a real `sqlite3.Connection` — always `.close()` it (or
+  use it as a context manager: `with SqliteAuthStore.open(path) as store:`)
+  when you're done with it. `AuthService` never closes its store — construct
+  and tear down the store where you constructed it, not inside the service.
+  (v0.1.0 had no `close()` at all — a caller had no clean way to release the
+  connection short of reaching into the private `_conn`; fixed in v0.1.1.)
 - Session tokens: `secrets.token_urlsafe(32)`; only the SHA-256 is ever
   persisted (`_token_hash`). Same idea for recovery codes (SHA-256 of the
   de-hyphenated, lowercased code).

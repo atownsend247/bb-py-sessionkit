@@ -60,43 +60,45 @@ def build_parser(prog: str = "python -m sessionkit") -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
-    auth = AuthService(SqliteAuthStore.open(args.db))
 
-    try:
-        if args.command == "add":
-            user = auth.create_user(args.email, _prompt_new_password(), name=args.name)
-            print(f"created {user.email} (id {user.id})")
+    with SqliteAuthStore.open(args.db) as store:
+        auth = AuthService(store)
 
-        elif args.command == "list":
-            users = auth.list_users()
-            if not users:
-                print("(no accounts yet)")
-            for user in users:
-                print(f"{user.id:>3}  {user.email}  ({user.name})")
+        try:
+            if args.command == "add":
+                user = auth.create_user(args.email, _prompt_new_password(), name=args.name)
+                print(f"created {user.email} (id {user.id})")
 
-        elif args.command == "passwd":
-            user = auth.find_user(args.email)
-            if user is None:
-                sys.exit(f"no such account: {args.email}")
-            auth.set_password(user.id, _prompt_new_password())
-            print(f"password updated for {user.email}")
+            elif args.command == "list":
+                users = auth.list_users()
+                if not users:
+                    print("(no accounts yet)")
+                for user in users:
+                    print(f"{user.id:>3}  {user.email}  ({user.name})")
 
-        elif args.command == "delete":
-            user = auth.find_user(args.email)
-            if user is None:
-                sys.exit(f"no such account: {args.email}")
-            auth.delete_user(user.id)
-            print(f"deleted {user.email}")
+            elif args.command == "passwd":
+                user = auth.find_user(args.email)
+                if user is None:
+                    sys.exit(f"no such account: {args.email}")
+                auth.set_password(user.id, _prompt_new_password())
+                print(f"password updated for {user.email}")
 
-        elif args.command == "2fa-disable":
-            user = auth.find_user(args.email)
-            if user is None:
-                sys.exit(f"no such account: {args.email}")
-            auth.disable_totp(user.id)
-            print(f"two-factor disabled for {user.email}")
+            elif args.command == "delete":
+                user = auth.find_user(args.email)
+                if user is None:
+                    sys.exit(f"no such account: {args.email}")
+                auth.delete_user(user.id)
+                print(f"deleted {user.email}")
 
-    except AuthError as exc:
-        sys.exit(f"error: {exc}")
+            elif args.command == "2fa-disable":
+                user = auth.find_user(args.email)
+                if user is None:
+                    sys.exit(f"no such account: {args.email}")
+                auth.disable_totp(user.id)
+                print(f"two-factor disabled for {user.email}")
+
+        except AuthError as exc:
+            sys.exit(f"error: {exc}")
 
 
 if __name__ == "__main__":

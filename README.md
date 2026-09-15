@@ -7,14 +7,19 @@ assumptions about your database beyond an `AuthStore` you provide.
 ```python
 from sessionkit import AuthService, SqliteAuthStore
 
-auth = AuthService(SqliteAuthStore.open("auth.db"))     # or ":memory:"
-user = auth.create_user("you@example.com", "correct horse battery staple")
+with SqliteAuthStore.open("auth.db") as store:     # or ":memory:"
+    auth = AuthService(store)
+    user = auth.create_user("you@example.com", "correct horse battery staple")
 
-result = auth.login("you@example.com", "correct horse battery staple")
-# result.token   -> opaque; put it in a cookie / header
-auth.user_for_token(result.token)                        # -> User, or raises
-auth.logout(result.token)
+    result = auth.login("you@example.com", "correct horse battery staple")
+    # result.token   -> opaque; put it in a cookie / header
+    auth.user_for_token(result.token)                        # -> User, or raises
+    auth.logout(result.token)
 ```
+
+(`SqliteAuthStore` also works without the `with`: call `store.close()`
+yourself when you're done with it — e.g. a long-lived server process that
+opens the store once at startup.)
 
 Two-factor:
 
@@ -70,7 +75,7 @@ sessionkit 2fa-disable you@example.com  # lockout recovery
 |---|---|
 | `AuthService` | all the rules; stateless; injectable `hasher`, `clock`, `session_days`, `issuer` |
 | `AuthStore` | the storage Protocol |
-| `SqliteAuthStore` | bundled store |
+| `SqliteAuthStore` | bundled store; `.close()` + context-manager support |
 | `Argon2Hasher` / `PasswordHasher` | default hasher (argon2-cffi) + the protocol to swap it |
 | `User`, `TotpEnrollment`, `TwoFactorStatus`, `LoginResult` | plain dataclasses |
 | `AuthError` and subclasses | `AuthenticationError`, `OtpRequired`, `OtpLocked`, `OtpInvalid`, `UserNotFound`, `DuplicateUser`, `ValidationError` |
