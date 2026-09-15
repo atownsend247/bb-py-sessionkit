@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+# One in-flight run per branch/tag; newer pushes cancel older runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Run tests
+        run: >
+          pytest -q
+          --junitxml=junit.xml
+          --cov --cov-report=xml --cov-report=term
+
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pytest-results
+          path: junit.xml
+          if-no-files-found: error
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          {
+            echo '### Coverage'
+            echo
+            python -m coverage report --format=markdown
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish-test-results:
+    name: publish test results
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+    permissions:
+      checks: write
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: pytest-results
+
+      # Turns the JUnit XML into a "Test Results" check run + job-summary
+      # table (+ a PR comment, when this run was triggered by a PR).
+      - name: Publish
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: junit.xml
+
+  # Only for a tag push (v1.2.3, ...): re-verify the tagged commit's tests,
+  # then bump the README's pinned install snippets to the new tag on `main`.
+  # A tag push is a deliberate, infrequent act (unlike every push to main), so
+  # an auto-commit here doesn't create the "pull before your next push"
+  # surprise that a commit-on-every-push bot would - see docs/development.md
+  # in the inventory-system repo for why that pattern was avoided there.
+  bump-readme-pin:
+    name: bump readme install pin
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # main, not the tag - the tag stays exactly as tagged; the version bump
+      # lands as a normal commit on top of main.
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Bump the install pin to ${{ github.ref_name }}
+        run: |
+          sed -i -E "s#(bb-py-sessionkit\.git@)v[0-9]+\.[0-9]+\.[0-9]+#\1${{ github.ref_name }}#g" README.md
+          git --no-pager diff -- README.md
+
+      - name: Commit if it changed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "README: bump install pin to ${{ github.ref_name }}"
+          file_pattern: README.md
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com

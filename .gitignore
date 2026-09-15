@@ -11,6 +11,7 @@ venv/
 .coverage.*
 coverage.xml
 htmlcov/
+junit.xml
 
 *.db
 *.db-wal
