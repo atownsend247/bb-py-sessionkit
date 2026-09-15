@@ -37,6 +37,10 @@ tests/                  flat - one directory, mirrors the one package
   test_sqlite_store.py     SqliteAuthStore itself: CRUD, close(), threading
   test_cli.py               the account CLI
   test_isolation.py         the "no forbidden imports" guard (see below)
+  test_example_fastapi.py    runs examples/fastapi_app.py for real (below)
+  test_docs_examples_in_sync.py  fails if the docs' copy of it drifts (below)
+examples/
+  fastapi_app.py         the FastAPI example embedded in docs/integration.md
 docs/                  this directory
 .github/workflows/ci.yml
 ```
@@ -64,6 +68,34 @@ docs/                  this directory
 - Run the **full** suite (`pytest`) before calling a change done, not just
   the file you touched — `AuthService` is small enough that this is always
   fast (well under a second).
+
+## Keeping the example honest
+
+[docs/integration.md](integration.md#fastapi-example-cookie-session-2fa-error-mapping)
+embeds [`examples/fastapi_app.py`](../examples/fastapi_app.py) verbatim
+between `<!-- BEGIN/END examples/fastapi_app.py -->` markers, rather than
+carrying a hand-copied snippet that can silently rot the moment the library's
+API changes underneath it (this happened once already, during the first
+draft of this exact example — a missing `OtpInvalid` map entry that only a
+real request run would have caught). Two tests enforce it, both part of the
+normal `pytest` run:
+
+- **`tests/test_example_fastapi.py`** imports `examples/fastapi_app.py` and
+  drives it with a real `fastapi.testclient.TestClient` — login, a wrong
+  password, 2FA setup + a wrong code, a full 2FA round trip (enrol, confirm,
+  a fresh login that now needs a code), logout, the 401 afterwards.
+- **`tests/test_docs_examples_in_sync.py`** does a straight string comparison
+  between the fenced block in `docs/integration.md` and the file's contents.
+
+**To change the example:** edit `examples/fastapi_app.py`, run `pytest` (the
+sync test tells you it's out of date if you forget the next step), then copy
+the file's exact contents back into the `<!-- BEGIN/END -->` block in
+`docs/integration.md`.
+
+`fastapi` and `httpx` are **`dev`-only** dependencies, only there to run this
+example and its test — `sessionkit` itself never imports either
+(`tests/test_isolation.py` still enforces that for `src/sessionkit/`; adding
+a framework to `dev` doesn't weaken that guarantee, it's a separate concern).
 
 ## Coverage
 

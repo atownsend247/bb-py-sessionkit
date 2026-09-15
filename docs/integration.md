@@ -22,12 +22,31 @@ stateless, and `SqliteAuthStore` is safe to share across a thread pool (see
 
 ## FastAPI example (cookie session, 2FA, error mapping)
 
-This is a complete, runnable example — every line below was exercised against
-a real `fastapi.testclient.TestClient` before being written into this file
-(login, a wrong password, 2FA setup + a wrong code, logout, and the 401 you
-get from a protected route afterwards).
+This is [`examples/fastapi_app.py`](../examples/fastapi_app.py), embedded
+verbatim — not a hand-copied snippet that can quietly drift. Two tests keep
+it honest: `tests/test_example_fastapi.py` runs it against a real
+`fastapi.testclient.TestClient` (login, a wrong password, 2FA setup + a wrong
+code, a full 2FA round trip, logout, the 401 afterwards), and
+`tests/test_docs_examples_in_sync.py` fails CI if this code block and the
+file it's copied from ever disagree. Both run as part of the normal `pytest`
+suite — see [development.md](development.md#keeping-the-example-honest).
 
+<!-- BEGIN examples/fastapi_app.py -->
 ```python
+"""A complete FastAPI integration: cookie session, 2FA, error mapping.
+
+This is the canonical source for the example in docs/integration.md - the
+markdown embeds this file's contents verbatim, and
+tests/test_docs_examples_in_sync.py fails CI if the two ever drift apart.
+tests/test_example_fastapi.py runs it against a real TestClient, so this
+example is exercised by the normal test suite, not just eyeballed.
+
+Edit this file, not the code fence in the docs - see
+docs/development.md#keeping-the-example-honest.
+"""
+
+from __future__ import annotations
+
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
@@ -112,6 +131,7 @@ def create_app(auth: AuthService) -> FastAPI:
 
     return app
 ```
+<!-- END examples/fastapi_app.py -->
 
 Wire it up at startup:
 

@@ -30,6 +30,13 @@ used there via `AuthStore`, but this repo has no knowledge of that app.
 - `tests/` — one flat directory (one package, no need to mirror subpackages).
   `conftest.py` has `clock` (`FakeClock`), `FakeHasher`, `store`
   (`SqliteAuthStore` over `:memory:`), `auth` (`AuthService` wired to both).
+  `test_example_fastapi.py` + `test_docs_examples_in_sync.py` run
+  `examples/fastapi_app.py` for real and fail if `docs/integration.md`'s copy
+  of it drifts — see `docs/development.md#keeping-the-example-honest` before
+  touching that example.
+- `examples/fastapi_app.py` — the FastAPI integration example. Edit it, not
+  the code fence in `docs/integration.md` (that's a generated-feeling copy,
+  kept honest by the tests above, not a second source of truth).
 
 ## Commands
 

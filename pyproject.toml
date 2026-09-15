@@ -30,6 +30,12 @@ Issues = "https://github.com/atownsend247/bb-py-sessionkit/issues"
 dev = [
     "pytest>=8",
     "pytest-cov>=5",
+    # Not a real dependency of the library - only used to exercise
+    # examples/fastapi_app.py (tests/test_example_fastapi.py) and prove the
+    # docs stay accurate. sessionkit itself never imports either of these
+    # (tests/test_isolation.py enforces that for src/sessionkit/).
+    "fastapi>=0.110",
+    "httpx>=0.27",
 ]
 
 [project.scripts]
