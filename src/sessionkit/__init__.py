@@ -31,7 +31,7 @@ from .service import DEFAULT_ISSUER, DEFAULT_SESSION_DAYS, AuthService
 from .sqlite_store import AUTH_SCHEMA, SqliteAuthStore, ensure_schema
 from .store import AuthStore
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 __all__ = [
     "__version__",

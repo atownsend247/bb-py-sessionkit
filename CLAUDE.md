@@ -62,6 +62,14 @@ python -m sessionkit add you@example.com   # or: sessionkit add …
   and tear down the store where you constructed it, not inside the service.
   (v0.1.0 had no `close()` at all — a caller had no clean way to release the
   connection short of reaching into the private `_conn`; fixed in v0.1.1.)
+- `SqliteAuthStore.open()` / `connect()` default to `check_same_thread=False`
+  — every method is already serialised on the store's own lock (see
+  `sqlite_store.py`'s module docstring), so one store opened once (e.g. at
+  app startup) is safe to share across a thread pool, which a real server
+  needs. (v0.1.0/v0.1.1 defaulted to `True`, sqlite3's own default, which
+  raises `ProgrammingError` the moment a second thread touches the store —
+  fixed in v0.1.2. `tests/test_sqlite_store.py` has a real
+  cross-thread regression test for this, not just a config check.)
 - Session tokens: `secrets.token_urlsafe(32)`; only the SHA-256 is ever
   persisted (`_token_hash`). Same idea for recovery codes (SHA-256 of the
   de-hyphenated, lowercased code).

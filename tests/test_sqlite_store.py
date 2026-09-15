@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlite3
+import threading
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -130,3 +132,44 @@ def test_context_manager_closes_even_on_an_exception(tmp_path):
 
     with pytest.raises(Exception):
         store.count_users()
+
+
+def test_default_open_is_usable_from_another_thread():
+    # The scenario this guards: a store opened once (e.g. at app startup) and
+    # then used from a thread pool - FastAPI's threaded request handling, a
+    # WSGI worker, .... Every method is already serialised on the store's own
+    # lock, so this is safe; it just needs sqlite3's same-thread guard off.
+    with SqliteAuthStore.open(":memory:") as store:
+        errors: list[BaseException] = []
+
+        def worker() -> None:
+            try:
+                store.add_user("a@b.com", "A", "h")
+            except BaseException as exc:  # noqa: BLE001 - captured for the assertion
+                errors.append(exc)
+
+        t = threading.Thread(target=worker)
+        t.start()
+        t.join()
+
+        assert errors == []
+        assert store.count_users() == 1  # visible back on the main thread
+
+
+def test_explicit_check_same_thread_true_still_enforces_it():
+    # The knob still works if a caller deliberately wants the stricter default.
+    with SqliteAuthStore.open(":memory:", check_same_thread=True) as store:
+        errors: list[BaseException] = []
+
+        def worker() -> None:
+            try:
+                store.add_user("a@b.com", "A", "h")
+            except BaseException as exc:  # noqa: BLE001
+                errors.append(exc)
+
+        t = threading.Thread(target=worker)
+        t.start()
+        t.join()
+
+        assert len(errors) == 1
+        assert isinstance(errors[0], sqlite3.ProgrammingError)

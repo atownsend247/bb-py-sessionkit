@@ -75,7 +75,7 @@ sessionkit 2fa-disable you@example.com  # lockout recovery
 |---|---|
 | `AuthService` | all the rules; stateless; injectable `hasher`, `clock`, `session_days`, `issuer` |
 | `AuthStore` | the storage Protocol |
-| `SqliteAuthStore` | bundled store; `.close()` + context-manager support |
+| `SqliteAuthStore` | bundled store; `.close()` + context-manager support; safe to share across threads out of the box |
 | `Argon2Hasher` / `PasswordHasher` | default hasher (argon2-cffi) + the protocol to swap it |
 | `User`, `TotpEnrollment`, `TwoFactorStatus`, `LoginResult` | plain dataclasses |
 | `AuthError` and subclasses | `AuthenticationError`, `OtpRequired`, `OtpLocked`, `OtpInvalid`, `UserNotFound`, `DuplicateUser`, `ValidationError` |

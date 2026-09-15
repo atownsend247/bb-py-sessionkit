@@ -58,9 +58,16 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def connect(db_path: str = "auth.db", *, check_same_thread: bool = True) -> sqlite3.Connection:
+def connect(db_path: str = "auth.db", *, check_same_thread: bool = False) -> sqlite3.Connection:
     """Open a connection with foreign keys on, row access by name, and (for a
-    real file) WAL journalling. Runs :func:`ensure_schema`."""
+    real file) WAL journalling. Runs :func:`ensure_schema`.
+
+    ``check_same_thread`` defaults to ``False``: every ``SqliteAuthStore``
+    method is already serialised on its own lock (see the module docstring),
+    so the connection is safe to share across threads - which a real server
+    (FastAPI's threaded request handling, a WSGI app, ...) needs. Pass
+    ``True`` back if you specifically want sqlite3's single-thread guard.
+    """
     conn = sqlite3.connect(db_path, check_same_thread=check_same_thread)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
@@ -106,7 +113,7 @@ class SqliteAuthStore:
         self._lock = lock or threading.Lock()
 
     @classmethod
-    def open(cls, db_path: str = "auth.db", *, check_same_thread: bool = True) -> "SqliteAuthStore":
+    def open(cls, db_path: str = "auth.db", *, check_same_thread: bool = False) -> "SqliteAuthStore":
         return cls(connect(db_path, check_same_thread=check_same_thread))
 
     def close(self) -> None:
