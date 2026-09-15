@@ -110,6 +110,11 @@ pip install -e ".[dev]"
 pytest
 ```
 
+See [`docs/`](docs/) for more: [architecture](docs/architecture.md) (the
+service/store split, data model, error mapping), [development](docs/development.md)
+(testing, CI, cutting a release), [integration](docs/integration.md) (a
+verified FastAPI example, bring-your-own-storage).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

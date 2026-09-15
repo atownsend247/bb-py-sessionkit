@@ -7,6 +7,11 @@ used there via `AuthStore`, but this repo has no knowledge of that app.
 
 ## Where things are
 
+- `docs/` — [architecture.md](docs/architecture.md) (design, data model,
+  threading, the error hierarchy), [development.md](docs/development.md)
+  (setup, testing, CI, releases), [integration.md](docs/integration.md) (a
+  verified FastAPI example, bring-your-own-storage, testing an integration).
+  This file is the condensed version; `docs/` has the reasoning.
 - `src/sessionkit/` — flat, one package, no subpackages:
   - `service.py` — `AuthService`, all the rules. Stateless-ish; takes an
     injected `store` (`AuthStore`), `hasher`, `clock`, `session_days`, `issuer`.
@@ -94,5 +99,8 @@ python -m sessionkit add you@example.com   # or: sessionkit add …
 - Published as source on GitHub (`atownsend247/bb-py-sessionkit`, MIT), tagged
   releases (`v0.1.0`, ...) — **not** on PyPI. Consumers pin
   `sessionkit @ git+https://github.com/atownsend247/bb-py-sessionkit.git@<tag>`.
-  Bump `__version__` in `src/sessionkit/__init__.py` and tag to cut a release;
-  there's no CI workflow yet, so run `pytest --cov` locally before tagging.
+  Bump `__version__` in `src/sessionkit/__init__.py`, commit, tag `vX.Y.Z`,
+  push both — CI re-runs the tests against the tag and bumps `README.md`'s
+  install snippets on `main` automatically (`.github/workflows/ci.yml`;
+  `git pull` afterwards). See `docs/development.md` for the full release
+  checklist and `docs/integration.md` for a verified FastAPI example.
