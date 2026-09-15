@@ -1,5 +1,7 @@
 # sessionkit
 
+[![Latest tag](https://img.shields.io/github/v/tag/atownsend247/bb-py-sessionkit?label=latest)](https://github.com/atownsend247/bb-py-sessionkit/tags)
+
 Accounts, opaque server-side sessions, and opt-in TOTP two-factor auth with
 one-time recovery codes. Framework-agnostic — no web framework, no ORM, no
 assumptions about your database beyond an `AuthStore` you provide.
@@ -36,19 +38,31 @@ is the admin/support path (wire it behind your own permission check).
 
 ## Install
 
-Not on PyPI yet — install straight from GitHub, pinned to a tag:
+Not on PyPI yet — install straight from GitHub, pinned to a tag (the badge at
+the top of this page always shows the latest one — check there rather than
+trusting this snippet not to lag behind a release):
 
 ```sh
-pip install "sessionkit @ git+https://github.com/atownsend247/bb-py-sessionkit.git@v0.1.0"
+pip install "sessionkit @ git+https://github.com/atownsend247/bb-py-sessionkit.git@v0.1.2"
 ```
 
 or as a dependency line in `pyproject.toml`:
 
 ```toml
 dependencies = [
-    "sessionkit @ git+https://github.com/atownsend247/bb-py-sessionkit.git@v0.1.0",
+    "sessionkit @ git+https://github.com/atownsend247/bb-py-sessionkit.git@v0.1.2",
 ]
 ```
+
+**Why a pinned tag, not a version range:** pip's `>=` / `~=` / wildcard range
+syntax only works against a real package index (PyPI, or a private one) — a
+`git+https://…` direct reference takes exactly one ref and nothing fuzzier.
+The closest thing to "always latest" is dropping the `@v0.1.2` entirely (or
+using `@main`), which resolves to the default branch's current tip — but then
+`pip install` (and CI) silently pick up whatever's newest, including a
+breaking change, with no warning and no easy rollback. Not recommended;
+pin a tag and bump it deliberately (`git log`/tags above show what changed).
+Real version ranges become available once/if this is published to PyPI.
 
 ## Bring your own storage
 
