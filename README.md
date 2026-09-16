@@ -43,14 +43,14 @@ the top of this page always shows the latest one — check there rather than
 trusting this snippet not to lag behind a release):
 
 ```sh
-pip install "sessionkit @ git+https://github.com/atownsend247/bb-py-sessionkit.git@v0.1.2"
+pip install "sessionkit @ git+https://github.com/atownsend247/bb-py-sessionkit.git@v0.2.0"
 ```
 
 or as a dependency line in `pyproject.toml`:
 
 ```toml
 dependencies = [
-    "sessionkit @ git+https://github.com/atownsend247/bb-py-sessionkit.git@v0.1.2",
+    "sessionkit @ git+https://github.com/atownsend247/bb-py-sessionkit.git@v0.2.0",
 ]
 ```
 
