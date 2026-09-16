@@ -12,7 +12,7 @@ class User:
 
     email: str
     name: str
-    id: int | None = None
+    id: str | None = None  # UUID4 string, e.g. from SqliteAuthStore.add_user
     created_at: datetime | None = None
     totp_enabled: bool = False  # derived: has a confirmed TOTP secret
 

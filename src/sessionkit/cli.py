@@ -74,7 +74,7 @@ def main(argv: list[str] | None = None) -> None:
                 if not users:
                     print("(no accounts yet)")
                 for user in users:
-                    print(f"{user.id:>3}  {user.email}  ({user.name})")
+                    print(f"{user.id}  {user.email}  ({user.name})")
 
             elif args.command == "passwd":
                 user = auth.find_user(args.email)

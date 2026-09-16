@@ -45,7 +45,18 @@ Three logical records, whatever the storage:
 - **Account** (`User` dataclass) — `id`, `email` (unique, case-insensitive),
   `name`, plus a password hash the store holds but never puts on the
   dataclass. `totp_enabled` is derived (true once a TOTP secret is
-  *confirmed*, not merely started).
+  *confirmed*, not merely started). **`id` is an opaque string, not a
+  sequential integer** — `SqliteAuthStore` generates a random UUID4
+  (`uuid.uuid4()`) per account rather than relying on the database's
+  autoincrement. That's deliberate: an autoincrementing id leaks information
+  it has no business leaking — "user 1" is very likely the first/admin
+  account, and an id appearing in a URL or API response tells any caller
+  roughly how many accounts exist and in what order they signed up. A UUID4
+  carries none of that; every implementation of `AuthStore` (including a
+  custom one — see [integration.md](integration.md#bring-your-own-storage))
+  is expected to hand out ids with the same property, not necessarily UUIDs
+  specifically, but definitely not a sequence a caller could enumerate or
+  read meaning into.
 - **Session** — an opaque token (`secrets.token_urlsafe(32)`); only its
   SHA-256 is ever persisted, so a stolen database dump can't be replayed as
   live sessions, and revocation ("log out everywhere") is a real delete, not

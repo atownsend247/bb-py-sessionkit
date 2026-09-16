@@ -68,6 +68,13 @@ python -m sessionkit add you@example.com   # or: sessionkit add …
 
 ## Conventions
 
+- **`User.id` is an opaque string, never a sequential integer.**
+  `SqliteAuthStore` generates a UUID4 per account (`add_user`, not the
+  `users` table's rowid) so nothing about an id leaks creation order or
+  account count. Any custom `AuthStore` implementation must hand back string
+  ids the same way — cast an integer PK, don't return it bare (see
+  `docs/architecture.md#data-model`). This was a breaking change (0.1.x's ids
+  were `int`) — bumped to 0.2.0.
 - `SqliteAuthStore` owns a real `sqlite3.Connection` — always `.close()` it (or
   use it as a context manager: `with SqliteAuthStore.open(path) as store:`)
   when you're done with it. `AuthService` never closes its store — construct

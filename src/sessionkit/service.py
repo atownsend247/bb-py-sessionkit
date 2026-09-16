@@ -5,7 +5,9 @@ only their SHA-256 is stored, so logout / revocation actually work. TOTP is
 per-account with one-time recovery codes and a lockout after repeated bad codes.
 
 The service holds no state and touches storage only through :class:`AuthStore`;
-the clock is injectable so tests are deterministic.
+the clock is injectable so tests are deterministic. Account ids are opaque
+strings (the bundled store uses a UUID4) - never parsed, ordered, or compared
+as numbers here.
 """
 
 from __future__ import annotations
@@ -107,13 +109,13 @@ class AuthService:
         display = name.strip() if isinstance(name, str) and name.strip() else clean_email.split("@")[0]
         return self._repo.add_user(clean_email, display, self._hasher.hash(password))
 
-    def set_password(self, user_id: int, password: str) -> None:
+    def set_password(self, user_id: str, password: str) -> None:
         self._require_user(user_id)
         _check_password(password)
         self._repo.set_password_hash(user_id, self._hasher.hash(password))
         self._repo.delete_sessions_for_user(user_id)  # force re-login everywhere
 
-    def delete_user(self, user_id: int) -> None:
+    def delete_user(self, user_id: str) -> None:
         self._require_user(user_id)
         if self._repo.count_users() <= 1:
             raise ValidationError("cannot delete the last remaining user")
@@ -121,14 +123,14 @@ class AuthService:
         self._repo.delete_user(user_id)
 
     # ---------------------------------------------------------- two-factor
-    def two_factor_status(self, user_id: int) -> TwoFactorStatus:
+    def two_factor_status(self, user_id: str) -> TwoFactorStatus:
         _, confirmed_at, _ = self._repo.get_totp(user_id)
         return TwoFactorStatus(
             enabled=confirmed_at is not None,
             recovery_codes_remaining=self._repo.count_unused_recovery_codes(user_id),
         )
 
-    def start_totp_enrollment(self, user_id: int) -> TotpEnrollment:
+    def start_totp_enrollment(self, user_id: str) -> TotpEnrollment:
         """Generate a fresh (unconfirmed) secret and its provisioning URI."""
         user = self._require_user(user_id)
         _, confirmed_at, _ = self._repo.get_totp(user_id)
@@ -141,7 +143,7 @@ class AuthService:
         )
         return TotpEnrollment(secret=secret, uri=uri)
 
-    def confirm_totp(self, user_id: int, otp: str) -> list[str]:
+    def confirm_totp(self, user_id: str, otp: str) -> list[str]:
         """Verify a code against the pending secret, enable 2FA, return recovery codes."""
         self._require_user(user_id)
         secret, confirmed_at, _ = self._repo.get_totp(user_id)
@@ -156,7 +158,7 @@ class AuthService:
         self._repo.reset_totp_failures(user_id)
         return self._issue_recovery_codes(user_id)
 
-    def disable_totp(self, user_id: int, *, current_password: str | None = None) -> None:
+    def disable_totp(self, user_id: str, *, current_password: str | None = None) -> None:
         """Turn 2FA off. ``current_password`` is checked for self-service; an
         admin CLI calls this without one."""
         self._require_user(user_id)
@@ -168,7 +170,7 @@ class AuthService:
         self._repo.reset_totp_failures(user_id)
         self._repo.replace_recovery_codes(user_id, [])
 
-    def regenerate_recovery_codes(self, user_id: int, current_password: str) -> list[str]:
+    def regenerate_recovery_codes(self, user_id: str, current_password: str) -> list[str]:
         self._require_user(user_id)
         _, confirmed_at, _ = self._repo.get_totp(user_id)
         if confirmed_at is None:
@@ -178,7 +180,7 @@ class AuthService:
             raise AuthenticationError("incorrect password")
         return self._issue_recovery_codes(user_id)
 
-    def _issue_recovery_codes(self, user_id: int) -> list[str]:
+    def _issue_recovery_codes(self, user_id: str) -> list[str]:
         codes = [_new_recovery_code() for _ in range(_RECOVERY_CODE_COUNT)]
         self._repo.replace_recovery_codes(user_id, [_hash_recovery(c) for c in codes])
         return codes
@@ -189,7 +191,7 @@ class AuthService:
         )
 
     def _check_second_factor(
-        self, user_id: int, secret: str, failures: int, otp: str | None
+        self, user_id: str, secret: str, failures: int, otp: str | None
     ) -> None:
         locked = failures >= _OTP_MAX_FAILURES
         code = otp.strip() if isinstance(otp, str) else ""
@@ -251,7 +253,7 @@ class AuthService:
         self._repo.purge_expired_sessions(self._clock())
 
     # ----------------------------------------------------------------- helper
-    def _require_user(self, user_id: int) -> User:
+    def _require_user(self, user_id: str) -> User:
         user = self._repo.get_user_by_id(user_id)
         if user is None:
             raise UserNotFound(f"No user with id {user_id}")

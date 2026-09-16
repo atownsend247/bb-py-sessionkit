@@ -72,7 +72,7 @@ def test_cannot_delete_the_last_account(auth):
 def test_delete_unknown_account(auth):
     auth.create_user("alex@example.com", "password123")
     with pytest.raises(UserNotFound):
-        auth.delete_user(9999)
+        auth.delete_user("no-such-id")
 
 
 def test_expired_session_is_rejected_and_purged(auth, clock):

@@ -185,7 +185,11 @@ class MyOrmAuthStore:
 
     def add_user(self, email: str, name: str, password_hash: str) -> User:
         row = MyUserModel.objects.create(email=email, name=name, password_hash=password_hash)
-        return User(id=row.id, email=row.email, name=row.name, created_at=row.created_at)
+        # User.id is a string - cast an integer PK (e.g. Django's default
+        # autoincrement id) rather than exposing it as-is. Better still, make
+        # the id itself non-sequential (a UUID column, like SqliteAuthStore
+        # uses) - see architecture.md#data-model for why that matters.
+        return User(id=str(row.id), email=row.email, name=row.name, created_at=row.created_at)
 
     def get_user_by_email(self, email: str) -> User | None:
         row = MyUserModel.objects.filter(email__iexact=email).first()
@@ -205,6 +209,9 @@ inheritance relationship to anything in sessionkit.
 
 A couple of things worth getting right in your own implementation:
 
+- **`User.id` is a string.** Cast an integer primary key rather than
+  returning it as-is - and ideally don't hand out a sequential one at all;
+  see [architecture.md](architecture.md#data-model) for why.
 - **Raise `DuplicateUser`** from `add_user` on a clashing email (sessionkit
   never checks uniqueness itself — that's a storage-layer constraint).
 - **`get_user_by_email` must be case-insensitive** (`AuthService` doesn't

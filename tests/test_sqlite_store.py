@@ -2,12 +2,26 @@ from __future__ import annotations
 
 import sqlite3
 import threading
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from sessionkit import AuthStore, DuplicateUser, SqliteAuthStore
 from sessionkit.sqlite_store import connect, ensure_schema
+
+
+def test_account_ids_are_random_uuid4_strings_not_sequential_ints(store):
+    a = store.add_user("a@b.com", "A", "h")
+    b = store.add_user("c@d.com", "C", "h")
+
+    assert isinstance(a.id, str) and isinstance(b.id, str)
+    assert a.id != b.id
+    # uuid.UUID(...) raises ValueError on anything that isn't a valid UUID
+    # string; .version == 4 confirms it's actually random (UUID4), not e.g.
+    # a time-ordered UUID7 that would leak creation order.
+    assert uuid.UUID(a.id).version == 4
+    assert uuid.UUID(b.id).version == 4
 
 
 def test_ensure_schema_is_idempotent():

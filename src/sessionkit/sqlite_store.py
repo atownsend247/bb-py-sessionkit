@@ -6,7 +6,9 @@ persistence layer (like the inventory app) can implement ``AuthStore`` itself
 and skip this entirely.
 
 One connection is shared and every call is serialised on a lock, matching
-``sqlite3.threadsafety == 1``.
+``sqlite3.threadsafety == 1``. Account ids are UUID4 strings generated here
+(not a database autoincrement) - opaque and non-sequential on purpose, so
+nothing about an id reveals creation order or how many accounts exist.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from __future__ import annotations
 import functools
 import sqlite3
 import threading
+import uuid
 from datetime import datetime, timezone
 from typing import Callable, TypeVar
 
@@ -24,7 +27,7 @@ _R = TypeVar("_R")
 
 AUTH_SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
-    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    id                 TEXT PRIMARY KEY,
     email              TEXT NOT NULL UNIQUE COLLATE NOCASE,
     name               TEXT NOT NULL,
     password_hash      TEXT NOT NULL,
@@ -36,7 +39,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS sessions (
     token_hash  TEXT PRIMARY KEY,
-    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at  TEXT NOT NULL,
     expires_at  TEXT NOT NULL
 );
@@ -44,7 +47,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 
 CREATE TABLE IF NOT EXISTS recovery_codes (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     code_hash TEXT NOT NULL,
     used_at   TEXT
 );
@@ -131,25 +134,26 @@ class SqliteAuthStore:
     # ---- accounts ---------------------------------------------------
     @_locked
     def add_user(self, email: str, name: str, password_hash: str) -> User:
+        new_id = str(uuid.uuid4())
         created_at = _iso(datetime.now(timezone.utc))
         try:
-            cur = self._conn.execute(
-                "INSERT INTO users (email, name, password_hash, created_at) "
-                "VALUES (?, ?, ?, ?)",
-                (email, name, password_hash, created_at),
+            self._conn.execute(
+                "INSERT INTO users (id, email, name, password_hash, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (new_id, email, name, password_hash, created_at),
             )
         except sqlite3.IntegrityError as exc:
             raise DuplicateUser(f"A user with email {email!r} already exists") from exc
         self._conn.commit()
         return User(
-            id=cur.lastrowid,
+            id=new_id,
             email=email,
             name=name,
             created_at=datetime.fromisoformat(created_at),
         )
 
     @_locked
-    def get_user_by_id(self, user_id: int) -> User | None:
+    def get_user_by_id(self, user_id: str) -> User | None:
         row = self._conn.execute(
             "SELECT * FROM users WHERE id = ?", (user_id,)
         ).fetchone()
@@ -163,14 +167,14 @@ class SqliteAuthStore:
         return _user_from_row(row) if row is not None else None
 
     @_locked
-    def get_password_hash(self, user_id: int) -> str | None:
+    def get_password_hash(self, user_id: str) -> str | None:
         row = self._conn.execute(
             "SELECT password_hash FROM users WHERE id = ?", (user_id,)
         ).fetchone()
         return row["password_hash"] if row is not None else None
 
     @_locked
-    def set_password_hash(self, user_id: int, password_hash: str) -> None:
+    def set_password_hash(self, user_id: str, password_hash: str) -> None:
         self._conn.execute(
             "UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id)
         )
@@ -182,7 +186,7 @@ class SqliteAuthStore:
         return [_user_from_row(r) for r in rows]
 
     @_locked
-    def delete_user(self, user_id: int) -> None:
+    def delete_user(self, user_id: str) -> None:
         self._conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
         self._conn.commit()
 
@@ -193,7 +197,7 @@ class SqliteAuthStore:
 
     # ---- two-factor ------------------------------------------------
     @_locked
-    def get_totp(self, user_id: int) -> tuple[str | None, datetime | None, int]:
+    def get_totp(self, user_id: str) -> tuple[str | None, datetime | None, int]:
         row = self._conn.execute(
             "SELECT totp_secret, totp_confirmed_at, totp_failures FROM users WHERE id = ?",
             (user_id,),
@@ -209,7 +213,7 @@ class SqliteAuthStore:
 
     @_locked
     def set_totp(
-        self, user_id: int, *, secret: str | None, confirmed_at: datetime | None
+        self, user_id: str, *, secret: str | None, confirmed_at: datetime | None
     ) -> None:
         self._conn.execute(
             "UPDATE users SET totp_secret = ?, totp_confirmed_at = ? WHERE id = ?",
@@ -218,21 +222,21 @@ class SqliteAuthStore:
         self._conn.commit()
 
     @_locked
-    def bump_totp_failures(self, user_id: int) -> None:
+    def bump_totp_failures(self, user_id: str) -> None:
         self._conn.execute(
             "UPDATE users SET totp_failures = totp_failures + 1 WHERE id = ?", (user_id,)
         )
         self._conn.commit()
 
     @_locked
-    def reset_totp_failures(self, user_id: int) -> None:
+    def reset_totp_failures(self, user_id: str) -> None:
         self._conn.execute(
             "UPDATE users SET totp_failures = 0 WHERE id = ?", (user_id,)
         )
         self._conn.commit()
 
     @_locked
-    def replace_recovery_codes(self, user_id: int, code_hashes: list[str]) -> None:
+    def replace_recovery_codes(self, user_id: str, code_hashes: list[str]) -> None:
         self._conn.execute("DELETE FROM recovery_codes WHERE user_id = ?", (user_id,))
         self._conn.executemany(
             "INSERT INTO recovery_codes (user_id, code_hash) VALUES (?, ?)",
@@ -242,7 +246,7 @@ class SqliteAuthStore:
 
     @_locked
     def consume_recovery_code(
-        self, user_id: int, code_hash: str, used_at: datetime
+        self, user_id: str, code_hash: str, used_at: datetime
     ) -> bool:
         cur = self._conn.execute(
             "UPDATE recovery_codes SET used_at = ? "
@@ -254,7 +258,7 @@ class SqliteAuthStore:
         return cur.rowcount > 0
 
     @_locked
-    def count_unused_recovery_codes(self, user_id: int) -> int:
+    def count_unused_recovery_codes(self, user_id: str) -> int:
         (count,) = self._conn.execute(
             "SELECT COUNT(*) FROM recovery_codes WHERE user_id = ? AND used_at IS NULL",
             (user_id,),
@@ -263,7 +267,7 @@ class SqliteAuthStore:
 
     # ---- sessions ------------------------------------------------
     @_locked
-    def add_session(self, token_hash: str, user_id: int, expires_at: datetime) -> None:
+    def add_session(self, token_hash: str, user_id: str, expires_at: datetime) -> None:
         self._conn.execute(
             "INSERT INTO sessions (token_hash, user_id, created_at, expires_at) "
             "VALUES (?, ?, ?, ?)",
@@ -272,7 +276,7 @@ class SqliteAuthStore:
         self._conn.commit()
 
     @_locked
-    def get_session_user_id(self, token_hash: str, now: datetime) -> int | None:
+    def get_session_user_id(self, token_hash: str, now: datetime) -> str | None:
         row = self._conn.execute(
             "SELECT user_id, expires_at FROM sessions WHERE token_hash = ?",
             (token_hash,),
@@ -289,7 +293,7 @@ class SqliteAuthStore:
         self._conn.commit()
 
     @_locked
-    def delete_sessions_for_user(self, user_id: int) -> None:
+    def delete_sessions_for_user(self, user_id: str) -> None:
         self._conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
         self._conn.commit()
 
