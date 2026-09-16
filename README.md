@@ -57,7 +57,7 @@ dependencies = [
 **Why a pinned tag, not a version range:** pip's `>=` / `~=` / wildcard range
 syntax only works against a real package index (PyPI, or a private one) — a
 `git+https://…` direct reference takes exactly one ref and nothing fuzzier.
-The closest thing to "always latest" is dropping the `@v0.1.2` entirely (or
+The closest thing to "always latest" is dropping the `@<tag>` entirely (or
 using `@main`), which resolves to the default branch's current tip — but then
 `pip install` (and CI) silently pick up whatever's newest, including a
 breaking change, with no warning and no easy rollback. Not recommended;
