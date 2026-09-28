@@ -44,7 +44,10 @@ Three logical records, whatever the storage:
 
 - **Account** (`User` dataclass) — `id`, `email` (unique, case-insensitive),
   `name`, plus a password hash the store holds but never puts on the
-  dataclass. `totp_enabled` is derived (true once a TOTP secret is
+  dataclass. `last_login_at` is set on every successful `login()` (`None`
+  until the first one) — unlike a session row, it isn't deleted on logout or
+  swept by `purge_expired_sessions`, so it's the one place login history
+  survives. `totp_enabled` is derived (true once a TOTP secret is
   *confirmed*, not merely started). **`id` is an opaque string, not a
   sequential integer** — `SqliteAuthStore` generates a random UUID4
   (`uuid.uuid4()`) per account rather than relying on the database's

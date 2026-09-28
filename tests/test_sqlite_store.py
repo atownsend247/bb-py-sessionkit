@@ -39,6 +39,42 @@ def test_ensure_schema_is_idempotent():
         conn.close()
 
 
+def test_ensure_schema_migrates_users_table_missing_last_login_at():
+    # Simulates an auth.db provisioned before last_login_at existed: a
+    # users table with every other column but that one. ensure_schema()
+    # must add it in place rather than relying on CREATE TABLE IF NOT
+    # EXISTS, which only ever creates missing tables from scratch.
+    conn = connect(":memory:")
+    try:
+        conn.execute("DROP TABLE users")
+        conn.execute(
+            """
+            CREATE TABLE users (
+                id                 TEXT PRIMARY KEY,
+                email              TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                name               TEXT NOT NULL,
+                password_hash      TEXT NOT NULL,
+                created_at         TEXT NOT NULL,
+                totp_secret        TEXT,
+                totp_confirmed_at  TEXT,
+                totp_failures      INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
+        conn.commit()
+
+        ensure_schema(conn)  # must migrate, not raise
+
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(users)")}
+        assert "last_login_at" in columns
+
+        store = SqliteAuthStore(conn)
+        user = store.add_user("a@b.com", "A", "h")
+        assert user.last_login_at is None
+    finally:
+        conn.close()
+
+
 def test_store_satisfies_the_protocol(store):
     assert isinstance(store, AuthStore)
 
@@ -75,6 +111,20 @@ def test_user_crud_and_totp_columns(store):
 
     store.delete_user(user.id)
     assert store.count_users() == 0
+
+
+def test_record_login_sets_last_login_at(store):
+    user = store.add_user("a@b.com", "A", "h")
+    assert store.get_user_by_id(user.id).last_login_at is None
+
+    when = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    store.record_login(user.id, when)
+    assert store.get_user_by_id(user.id).last_login_at == when
+    assert store.list_users()[0].last_login_at == when
+
+    again = datetime(2026, 1, 2, tzinfo=timezone.utc)
+    store.record_login(user.id, again)
+    assert store.get_user_by_id(user.id).last_login_at == again
 
 
 def test_duplicate_email_raises(store):

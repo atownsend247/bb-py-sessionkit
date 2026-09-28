@@ -255,6 +255,8 @@ class AuthService:
         token = secrets.token_urlsafe(32)
         expires_at = now + timedelta(days=self._session_days)
         self._repo.add_session(_token_hash(token), user.id, expires_at)
+        self._repo.record_login(user.id, now)
+        user.last_login_at = now
         return LoginResult(user=user, token=token, expires_at=expires_at)
 
     def user_for_token(self, token: str | None) -> User:

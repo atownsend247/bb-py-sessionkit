@@ -14,6 +14,7 @@ class User:
     name: str
     id: str | None = None  # UUID4 string, e.g. from SqliteAuthStore.add_user
     created_at: datetime | None = None
+    last_login_at: datetime | None = None  # None until the first successful login
     totp_enabled: bool = False  # derived: has a confirmed TOTP secret
 
 

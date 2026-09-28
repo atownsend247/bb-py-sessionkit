@@ -83,5 +83,10 @@ class AuthStore(Protocol):
 
     def purge_expired_sessions(self, now: datetime) -> None: ...
 
+    def record_login(self, user_id: str, when: datetime) -> None:
+        """Stamp the account's ``last_login_at``. Called once per successful
+        ``AuthService.login()``, independent of session lifecycle - unlike a
+        session row, this must survive logout and expiry-purge."""
+
 
 __all__ = ["AuthStore"]

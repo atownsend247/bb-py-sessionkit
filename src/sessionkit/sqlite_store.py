@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
     name               TEXT NOT NULL,
     password_hash      TEXT NOT NULL,
     created_at         TEXT NOT NULL,
+    last_login_at      TEXT,
     totp_secret        TEXT,
     totp_confirmed_at  TEXT,
     totp_failures      INTEGER NOT NULL DEFAULT 0
@@ -56,8 +57,14 @@ CREATE INDEX IF NOT EXISTS idx_recovery_codes_user_id ON recovery_codes(user_id)
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
-    """Create the ``users`` / ``sessions`` / ``recovery_codes`` tables if absent."""
+    """Create the ``users`` / ``sessions`` / ``recovery_codes`` tables if absent,
+    and migrate an existing ``users`` table that predates a column added
+    since (``CREATE TABLE IF NOT EXISTS`` alone doesn't touch a table that
+    already exists - it only ever creates missing tables from scratch)."""
     conn.executescript(AUTH_SCHEMA)
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(users)")}
+    if "last_login_at" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN last_login_at TEXT")
     conn.commit()
 
 
@@ -97,11 +104,15 @@ def _iso(dt: datetime) -> str:
 
 def _user_from_row(row: sqlite3.Row) -> User:
     keys = row.keys()
+    last_login_at = row["last_login_at"] if "last_login_at" in keys else None
     return User(
         id=row["id"],
         email=row["email"],
         name=row["name"],
         created_at=datetime.fromisoformat(row["created_at"]),
+        last_login_at=(
+            datetime.fromisoformat(last_login_at) if last_login_at is not None else None
+        ),
         totp_enabled=(
             "totp_confirmed_at" in keys and row["totp_confirmed_at"] is not None
         ),
@@ -317,6 +328,13 @@ class SqliteAuthStore:
     @_locked
     def purge_expired_sessions(self, now: datetime) -> None:
         self._conn.execute("DELETE FROM sessions WHERE expires_at <= ?", (_iso(now),))
+        self._conn.commit()
+
+    @_locked
+    def record_login(self, user_id: str, when: datetime) -> None:
+        self._conn.execute(
+            "UPDATE users SET last_login_at = ? WHERE id = ?", (_iso(when), user_id)
+        )
         self._conn.commit()
 
 

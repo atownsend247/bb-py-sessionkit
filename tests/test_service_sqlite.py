@@ -37,6 +37,21 @@ def test_create_login_logout_roundtrip(auth):
         auth.user_for_token(result.token)
 
 
+def test_login_records_last_login_at(auth, clock, store):
+    user = auth.create_user("alex@example.com", "password123", name="Alex")
+    assert user.last_login_at is None
+    assert store.get_user_by_id(user.id).last_login_at is None
+
+    first = auth.login("alex@example.com", "password123")
+    assert first.user.last_login_at == clock.now
+    assert store.get_user_by_id(user.id).last_login_at == clock.now
+
+    clock.advance(3600)
+    second = auth.login("alex@example.com", "password123")
+    assert second.user.last_login_at == clock.now
+    assert store.get_user_by_id(user.id).last_login_at == clock.now
+
+
 def test_duplicate_email_is_rejected_case_insensitively(auth):
     auth.create_user("alex@example.com", "password123")
     with pytest.raises(DuplicateUser):
