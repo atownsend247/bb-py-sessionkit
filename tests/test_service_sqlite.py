@@ -63,6 +63,46 @@ def test_changing_password_revokes_existing_sessions(auth):
     assert auth.login("alex@example.com", "brand-new-secret").token
 
 
+def test_set_name(auth):
+    user = auth.create_user("alex@example.com", "password123", name="Alex")
+    auth.set_name(user.id, "Alexandra")
+    assert auth.find_user("alex@example.com").name == "Alexandra"
+
+
+@pytest.mark.parametrize("bad", ["", "   "])
+def test_set_name_rejects_empty(auth, bad):
+    user = auth.create_user("alex@example.com", "password123")
+    with pytest.raises(ValidationError):
+        auth.set_name(user.id, bad)
+
+
+def test_set_email(auth):
+    user = auth.create_user("alex@example.com", "password123")
+    token = auth.login("alex@example.com", "password123").token
+
+    auth.set_email(user.id, "alexandra@example.com")
+
+    assert auth.find_user("alex@example.com") is None
+    assert auth.find_user("alexandra@example.com").id == user.id
+    # unlike set_password, an email change does not revoke sessions
+    assert auth.user_for_token(token).id == user.id
+
+
+def test_set_email_self_service_requires_correct_password(auth):
+    user = auth.create_user("alex@example.com", "password123")
+    with pytest.raises(AuthenticationError):
+        auth.set_email(user.id, "alexandra@example.com", current_password="wrong")
+    auth.set_email(user.id, "alexandra@example.com", current_password="password123")
+    assert auth.find_user("alexandra@example.com").id == user.id
+
+
+def test_set_email_rejects_duplicate(auth):
+    auth.create_user("alex@example.com", "password123")
+    other = auth.create_user("sam@example.com", "password123")
+    with pytest.raises(DuplicateUser):
+        auth.set_email(other.id, "ALEX@example.com")
+
+
 def test_cannot_delete_the_last_account(auth):
     user = auth.create_user("alex@example.com", "password123")
     with pytest.raises(ValidationError):

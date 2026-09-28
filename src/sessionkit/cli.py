@@ -3,6 +3,8 @@
     python -m sessionkit add alex@example.com --name Alex
     python -m sessionkit list
     python -m sessionkit passwd alex@example.com
+    python -m sessionkit rename alex@example.com "Alex Smith"
+    python -m sessionkit set-email alex@example.com alex.smith@example.com
     python -m sessionkit delete alex@example.com
     python -m sessionkit 2fa-disable alex@example.com   # locked out? reset it
 
@@ -48,6 +50,14 @@ def build_parser(prog: str = "python -m sessionkit") -> argparse.ArgumentParser:
     pw = sub.add_parser("passwd", help="set an account's password")
     pw.add_argument("email")
 
+    rn = sub.add_parser("rename", help="change an account's display name")
+    rn.add_argument("email")
+    rn.add_argument("name")
+
+    se = sub.add_parser("set-email", help="change an account's login email")
+    se.add_argument("email")
+    se.add_argument("new_email")
+
     rm = sub.add_parser("delete", help="delete an account")
     rm.add_argument("email")
 
@@ -82,6 +92,20 @@ def main(argv: list[str] | None = None) -> None:
                     sys.exit(f"no such account: {args.email}")
                 auth.set_password(user.id, _prompt_new_password())
                 print(f"password updated for {user.email}")
+
+            elif args.command == "rename":
+                user = auth.find_user(args.email)
+                if user is None:
+                    sys.exit(f"no such account: {args.email}")
+                auth.set_name(user.id, args.name)
+                print(f"renamed {user.email} to {args.name!r}")
+
+            elif args.command == "set-email":
+                user = auth.find_user(args.email)
+                if user is None:
+                    sys.exit(f"no such account: {args.email}")
+                auth.set_email(user.id, args.new_email)
+                print(f"email updated: {args.email} -> {args.new_email}")
 
             elif args.command == "delete":
                 user = auth.find_user(args.email)

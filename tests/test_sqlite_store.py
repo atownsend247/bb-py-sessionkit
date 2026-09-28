@@ -53,6 +53,13 @@ def test_user_crud_and_totp_columns(store):
     store.set_password_hash(user.id, "hash2")
     assert store.get_password_hash(user.id) == "hash2"
 
+    store.set_name(user.id, "A2")
+    assert store.get_user_by_id(user.id).name == "A2"
+
+    store.set_email(user.id, "a2@b.com")
+    assert store.get_user_by_id(user.id).email == "a2@b.com"
+    assert store.get_user_by_email("a2@b.com").id == user.id
+
     assert store.get_totp(user.id) == (None, None, 0)
     when = datetime(2026, 1, 1, tzinfo=timezone.utc)
     store.set_totp(user.id, secret="S", confirmed_at=when)
@@ -74,6 +81,13 @@ def test_duplicate_email_raises(store):
     store.add_user("a@b.com", "A", "h")
     with pytest.raises(DuplicateUser):
         store.add_user("a@b.com", "A2", "h2")
+
+
+def test_set_email_to_an_existing_address_raises(store):
+    store.add_user("a@b.com", "A", "h")
+    user = store.add_user("c@d.com", "C", "h")
+    with pytest.raises(DuplicateUser):
+        store.set_email(user.id, "A@B.COM")
 
 
 def test_recovery_codes_replace_consume_count(store):

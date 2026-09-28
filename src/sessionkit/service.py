@@ -115,6 +115,27 @@ class AuthService:
         self._repo.set_password_hash(user_id, self._hasher.hash(password))
         self._repo.delete_sessions_for_user(user_id)  # force re-login everywhere
 
+    def set_name(self, user_id: str, name: str) -> None:
+        self._require_user(user_id)
+        if not isinstance(name, str) or not name.strip():
+            raise ValidationError("name is required")
+        self._repo.set_name(user_id, name.strip())
+
+    def set_email(
+        self, user_id: str, email: str, *, current_password: str | None = None
+    ) -> None:
+        """Change the account's login email. ``current_password`` is checked
+        for self-service, like :meth:`disable_totp`; an admin caller omits
+        it. Unlike :meth:`set_password`, this does not revoke existing
+        sessions - email is not the credential a session token represents."""
+        self._require_user(user_id)
+        clean_email = _clean_email(email)
+        if current_password is not None:
+            stored = self._repo.get_password_hash(user_id)
+            if stored is None or not self._hasher.verify(stored, current_password):
+                raise AuthenticationError("incorrect password")
+        self._repo.set_email(user_id, clean_email)
+
     def delete_user(self, user_id: str) -> None:
         self._require_user(user_id)
         if self._repo.count_users() <= 1:

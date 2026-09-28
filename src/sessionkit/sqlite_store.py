@@ -181,6 +181,23 @@ class SqliteAuthStore:
         self._conn.commit()
 
     @_locked
+    def set_name(self, user_id: str, name: str) -> None:
+        self._conn.execute(
+            "UPDATE users SET name = ? WHERE id = ?", (name, user_id)
+        )
+        self._conn.commit()
+
+    @_locked
+    def set_email(self, user_id: str, email: str) -> None:
+        try:
+            self._conn.execute(
+                "UPDATE users SET email = ? WHERE id = ?", (email, user_id)
+            )
+        except sqlite3.IntegrityError as exc:
+            raise DuplicateUser(f"A user with email {email!r} already exists") from exc
+        self._conn.commit()
+
+    @_locked
     def list_users(self) -> list[User]:
         rows = self._conn.execute("SELECT * FROM users ORDER BY email COLLATE NOCASE")
         return [_user_from_row(r) for r in rows]

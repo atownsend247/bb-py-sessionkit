@@ -42,6 +42,22 @@ def test_passwd_then_2fa_disable_noop(db, capsys, monkeypatch):
     assert "two-factor disabled" in capsys.readouterr().out
 
 
+def test_rename_then_set_email(db, capsys, monkeypatch):
+    monkeypatch.setattr(cli.getpass, "getpass", lambda _prompt="": "password123")
+    _run(db, "add", "alex@example.com")
+    capsys.readouterr()
+
+    _run(db, "rename", "alex@example.com", "Alexandra")
+    assert "renamed alex@example.com to 'Alexandra'" in capsys.readouterr().out
+
+    _run(db, "set-email", "alex@example.com", "alexandra@example.com")
+    assert "alex@example.com -> alexandra@example.com" in capsys.readouterr().out
+
+    _run(db, "list")
+    out = capsys.readouterr().out
+    assert "alexandra@example.com" in out and "Alexandra" in out
+
+
 def test_unknown_account_exits(db):
     with pytest.raises(SystemExit):
         _run(db, "delete", "nobody@example.com")
